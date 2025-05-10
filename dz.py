@@ -5,7 +5,7 @@ from typing import Any
 
 import aiohttp
 import aiomysql
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
@@ -65,6 +65,9 @@ async def add_user(name: str, email: str ) -> dict[str, str]:
                 await cursor.execute(
                     "INSERT INTO users (name, email) VALUES (%s, %s);", (name, email)
                 )
+
+                if email is not None:
+                    raise HTTPException(400, "email is alredy exists. ")
             await conn.commit()
 
     except aiomysql.Error as e:
@@ -86,7 +89,7 @@ async def delete_user(email: str) -> dict[str, str]:
                 user = await cursor.fetchone()
 
                 if user is None:
-                    raise UserNotFoundError("User is not found")
+                    raise HTTPException("User is not found")
                 
                 await cursor.execute("DELETE FROM users WHERE email=%s;", (email,))
                 await conn.commit()
