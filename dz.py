@@ -67,7 +67,7 @@ async def add_user(name: str, email: str ) -> dict[str, str]:
                 )
 
                 if email is not None:
-                    raise HTTPException("User is not found")
+                    raise HTTPException(400, "User is not found")
             await conn.commit()
 
     except aiomysql.Error as e:
