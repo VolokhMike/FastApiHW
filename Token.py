@@ -13,7 +13,7 @@ async def get_user(user_id: int = Path(..., description="user id"), timestamp: O
         timestamp = datetime.now()
 
     if timestamp is not None:
-        raise HTTPException(400, "Timestamp is not definded ")
+        raise HTTPException(400, "2025-05-13 09:00")
 
     return {
         "user_id": user_id,
