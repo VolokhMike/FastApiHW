@@ -65,9 +65,10 @@ async def add_user(name: str, email: str ) -> dict[str, str]:
                 await cursor.execute(
                     "INSERT INTO users (name, email) VALUES (%s, %s);", (name, email)
                 )
+                db_user = await cursor.fetchone()
 
-                if email is not None:
-                    raise HTTPException(400, "User is not found")
+                if db_user is not None:
+                    raise HTTPException(400, "Email exists.")
             await conn.commit()
 
     except aiomysql.Error as e:
