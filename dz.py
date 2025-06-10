@@ -56,20 +56,22 @@ async def get_mysql_pool() -> aiomysql.Pool:
 
 
 @app.post("/users/")
-async def add_user(name: str, email: str ) -> dict[str, str]:
+async def add_user(name: str, email: str) -> dict[str, str]:
     pool = await get_mysql_pool()
 
     try:
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
-                await cursor.execute(
-                    "INSERT INTO users (name, email) VALUES (%s, %s);", (name, email)
-                )
+                await cursor.execute("SELECT 1 FROM users WHERE email=%s;", (email,))
                 db_user = await cursor.fetchone()
 
                 if db_user is not None:
                     raise HTTPException(400, "Email exists.")
-            await conn.commit()
+
+                await cursor.execute(
+                    "INSERT INTO users (name, email) VALUES (%s, %s);", (name, email)
+                )
+                await conn.commit()
 
     except aiomysql.Error as e:
         raise e
@@ -78,6 +80,7 @@ async def add_user(name: str, email: str ) -> dict[str, str]:
         await pool.wait_closed()
 
     return {"message": f"User {name} with email {email} has been added"}
+
 
 @app.delete("/users/")
 async def delete_user(email: str) -> dict[str, str]:
@@ -90,7 +93,7 @@ async def delete_user(email: str) -> dict[str, str]:
                 user = await cursor.fetchone()
 
                 if user is None:
-                    raise HTTPException("User is not found")
+                    raise HTTPException(status_code=404, detail="User is not found")
                 
                 await cursor.execute("DELETE FROM users WHERE email=%s;", (email,))
                 await conn.commit()
