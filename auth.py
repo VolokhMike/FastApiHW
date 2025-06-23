@@ -25,7 +25,7 @@ async def create_tables() -> None:
         cursor: aiosqlite.Cursor = await connection.cursor()
         await cursor.execute(
             """
-                CREATE TABLE IF NOT EXISTS users (
+                CREATE TABLE IF NOT EXISTS eployyers (
                     id        INTEGER PRIMARY KEY AUTOINCREMENT,
                     name      VARCHAR(30) NOT NULL,
                     email     VARCHAR(50) NOT NULL,
@@ -66,7 +66,7 @@ async def login(
 ):
     async with connection.cursor() as cursor:
         await cursor.execute(
-            "SELECT * FROM users WHERE email = ?", (form_data.username,)
+            "SELECT * FROM eployyers WHERE email = ?", (form_data.username,)
         )
 
         db_user = await cursor.fetchone()
@@ -97,14 +97,14 @@ async def decode_token(token: str):
 
     return decoded_user_email
 
-@app.get("/users/me/basic", status_code=status.HTTP_200_OK, response_model=UserShow)
+@app.get("/users/basic", status_code=status.HTTP_200_OK, response_model=UserShow)
 async def get_user_me_basic(
     credentials: HTTPBasicCredentials = Depends(security),
     connection: aiosqlite.Connection = Depends(get_db),
 ):
     async with connection.cursor() as cursor:
         await cursor.execute(
-            "SELECT * FROM users WHERE email = ? AND password = ?;",
+            "SELECT * FROM eployyers WHERE email = ? AND password = ?;",
             (credentials.username, credentials.password),
         )
         db_user = await cursor.fetchone()
@@ -122,7 +122,7 @@ async def get_user_me_basic(
     return decoded_user
 
 
-@app.post("/user/me/token", response_model=UserShow)
+@app.post("/user/token", response_model=UserShow)
 async def get_user_me_token(
     token: str = Depends(oauth2_scheme),
     connection: aiosqlite.Connection = Depends(get_db),
@@ -130,7 +130,7 @@ async def get_user_me_token(
     
     decoded_email = await decode_token(token)
     async with connection.cursor() as cursor:
-        await cursor.execute("SELECT * FROM users WHERE email = ?", decoded_email)
+        await cursor.execute("SELECT * FROM eployyers WHERE email = ?", decoded_email)
         db_user = await cursor.fetchone()
 
     if db_user is None:
@@ -146,10 +146,10 @@ async def get_user_me_token(
     return decoded_user
 
 
-@app.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserShow)
+@app.post("/registration", status_code=status.HTTP_201_CREATED, response_model=UserShow)
 async def user_registration(user_data: UserCreate, connection: aiosqlite.Connection = Depends(get_db)) -> UserShow:
     async with connection.cursor() as cursor:
-        await cursor.execute("SELECT 1 FROM users WHERE email = ?;", (user_data.email,))
+        await cursor.execute("SELECT 1 FROM eployyers  WHERE email = ?;", (user_data.email,))
         db_user = await cursor.fetchone()
 
         if db_user is not None:
