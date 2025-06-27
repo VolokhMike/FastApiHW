@@ -11,7 +11,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 async def get_database():
-    """Create and return database connection."""
     async with aiosqlite.connect(DATABASE_NAME) as db_connection:
         db_connection.row_factory = aiosqlite.Row
         yield db_connection
@@ -40,8 +39,6 @@ app = FastAPI(on_startup=(initialize_tables,), docs_url="/docs", redoc_url="/red
 
 
 class UserCreate(BaseModel):
-    """Model for user creation."""
-
     name: str = Field(
         description="User's name", min_length=3, examples=["Alice", "Bob", "Charlie"]
     )
@@ -50,8 +47,6 @@ class UserCreate(BaseModel):
 
 
 class UserDisplay(UserCreate):
-    """Model for displaying user data."""
-
     id: int = Field(description="User ID", gt=0)
     is_active: bool = Field(
         default=False, description="Indicates if the user is active."
@@ -59,14 +54,11 @@ class UserDisplay(UserCreate):
 
 
 class AccessToken(BaseModel):
-    """Model for access token."""
-
     token_type: str = Field(description="Type of token", examples=["bearer"])
     access_token: str = Field(description="Encoded token", examples=["dXNlckBleGFtcGxlLmNvbS1BbGljZQ=="])
 
 
 async def decode_access_token(token: str):
-    """Decode the access token to extract the user's email."""
     try:
         user_email = (
             base64.urlsafe_b64decode(token).split(b"-")[0].decode("utf-8")
@@ -97,7 +89,6 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db_connection: aiosqlite.Connection = Depends(get_database),
 ) -> UserDisplay:
-    """Retrieve current authenticated user data."""
     user_email = await decode_access_token(token)
 
     async with db_connection.cursor() as db_cursor:
@@ -138,7 +129,6 @@ async def login(
     credentials: OAuth2PasswordRequestForm = Depends(),
     db_connection: aiosqlite.Connection = Depends(get_database),
 ) -> AccessToken:
-    """Authenticate user and return access token."""
     async with db_connection.cursor() as db_cursor:
         await db_cursor.execute("SELECT * FROM users WHERE email = ?;", (credentials.username,))
         user_row = await db_cursor.fetchone()
@@ -176,7 +166,6 @@ async def login(
 async def register_user(
     user_input: UserCreate, db_connection: aiosqlite.Connection = Depends(get_database)
 ) -> UserDisplay:
-    """Register a new user to the database."""
     async with db_connection.cursor() as db_cursor:
         await db_cursor.execute("SELECT 1 FROM users WHERE email = ?;", (user_input.email,))
         existing = await db_cursor.fetchone()
@@ -220,7 +209,6 @@ async def get_users(
     limit: int = Query(default=10, description="Max number of users to return", gt=0),
     db_connection: aiosqlite.Connection = Depends(get_database),
 ) -> list[UserDisplay]:
-    """Fetch users from the database with a given limit."""
     async with db_connection.cursor() as db_cursor:
         await db_cursor.execute("SELECT * FROM users LIMIT ?;", (limit,))
         users = await db_cursor.fetchall()
