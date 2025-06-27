@@ -11,7 +11,7 @@ from pydantic import (
     ModelWrapValidatorHandler,
     ValidationError,
     field_validator,
-    model_validator,
+    model_validator,a
 )
 
 # конфігурація логування і створення логера для модуля
