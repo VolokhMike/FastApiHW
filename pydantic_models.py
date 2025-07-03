@@ -45,8 +45,6 @@ class FilmPydantic(BaseModel):
 
 @app.post('/movies/')
 async def create_movie(data: FilmPydantic) -> FilmPydantic:
-    if data is None:
-        raise HTTPException(status_code=400, detail="Data cannot be None")
 
     try:
         async with aiosqlite.connect(SQLITE_DB_NAME) as connection:
