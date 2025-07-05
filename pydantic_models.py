@@ -98,8 +98,8 @@ async def get_movie(id: int):
                     raise HTTPException(status_code=404, detail=f'Film with ID {id} not found')
     except aiosqlite.Error as error:
         print(error)
-
-    return data
+    else:
+        return data
 
 
 @app.delete('/movies/{id}')
@@ -115,8 +115,8 @@ async def delete_movies(id: int):
                 await connection.commit()
     except aiosqlite.Error as error:
         print(error)
-
-    return 'Deleted'
+    else:
+        return 'Deleted'
 
 
 if __name__ == "__main__":
