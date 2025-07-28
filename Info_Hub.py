@@ -1,7 +1,7 @@
 import aiosqlite
 import base64
 from fastapi import FastAPI, Depends, HTTPException, Path, Request, status
-from pydantic import BaseModel, EmailStr, SecretStr
+from pydantic import BaseModel, EmailStr, SecretStr, Field
 from typing import List
 import uvicorn
 from contextlib import asynccontextmanager
@@ -12,8 +12,9 @@ from fastapi.security import (
     OAuth2PasswordRequestForm,
 )
 
-security = HTTPBasic()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+security = HTTPBasic()
+
 
 SQLITE_DB_NAME = "mydb.db"
 
@@ -25,9 +26,14 @@ async def lifespan(app: FastAPI):
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
                 content TEXT NOT NULL,
+                tags TEXT,
+                author_email TEXT NOT NULL
+            );
+        """)
+        await db.execute("""CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 password INTEGER,
-                tags TEXT,
                 author_email TEXT NOT NULL
             );
         """)
@@ -55,7 +61,13 @@ class Tag(BaseModel):
 class InfoItemBase(BaseModel):
     title: str
     content: str
-    tags: List[Tag] = []
+    tags: List[Tag] = Field(default_factory=list)
+
+
+class InfoUSerBase(BaseModel):
+    title: str
+    content: str
+    tags: List[Tag] = Field(default_factory=list)
 
 class InfoItemCreate(InfoItemBase):
     author_email: str
@@ -68,17 +80,47 @@ class Token(BaseModel):
     token_type: str
     access_token: str
 
-class UserShow(InfoItemBase):
-    id: int
-
-class UserCreate(InfoItemBase):
+class UsersInfo(BaseModel):
     name: str
     password: SecretStr
 
 
+class UserShow(UsersInfo):
+    id: int
 
-@app.post("/info/", response_model=InfoItemInDB, status_code=201)
-async def create_info_item(item: InfoItemCreate, db: aiosqlite.Connection = Depends(get_db)):
+class UserCreate(UsersInfo):
+    name: str
+    author_email: EmailStr
+    password: str
+
+
+
+@app.post(
+    "/info/", 
+    response_model=InfoItemInDB, 
+    status_code=201,
+    tags=["items"],
+    summary="Create items",
+    description="Endpoint used for creating itema",
+    response_description="Create item",
+    operation_id="create-item",# уникальные у каждого ендпоинта
+    include_in_schema=True,
+    name="create-item",# уникальные у каждого ендпоинта
+    )
+async def create_info_item(item: InfoItemCreate, db: aiosqlite.Connection = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    user_email = await decode_token(token=token) #поиск юзера по токен 
+    
+    async with db.cursor() as cursor:
+        await cursor.execute("SELECT 1 FROM users WHERE author_email = ?;", (user_email,))
+        db_user = await cursor.fetchone()
+
+        if db_user is None:
+            raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid authentication credentials",
+                    headers={"WWW-Authenticate": "Bearer"},
+            )
+    
     tags_str = ", ".join(tag.name for tag in item.tags)
     query = """
         INSERT INTO info_items (title, content, tags, author_email)
@@ -92,7 +134,19 @@ async def create_info_item(item: InfoItemCreate, db: aiosqlite.Connection = Depe
 
 
 @app.put("/info/{item_id}", response_model=InfoItemInDB)
-async def update_info_item(item_id: int = Path(..., ge=1), item: InfoItemCreate = Depends(), db: aiosqlite.Connection = Depends(get_db)):
+async def update_info_item(item_id: int = Path(..., ge=1), item: InfoItemCreate = Depends(), db: aiosqlite.Connection = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    user_email = await decode_token(token=token)
+    
+    async with db.cursor() as cursor:
+        await cursor.execute("SELECT 1 FROM users WHERE author_email = ?;", (user_email,))
+        db_user = await cursor.fetchone()
+
+        if db_user is None:
+            raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid authentication credentials",
+                    headers={"WWW-Authenticate": "Bearer"},
+            )
     check_query = "SELECT * FROM info_items WHERE id = ?"
     async with db.execute(check_query, (item_id,)) as cursor:
         row = await cursor.fetchone()
@@ -102,7 +156,7 @@ async def update_info_item(item_id: int = Path(..., ge=1), item: InfoItemCreate 
     tags_str = ", ".join(tag.name for tag in item.tags)
     update_query = """
         UPDATE info_items
-        SET title = ?, content = ?, tags = ?, author_email = ?
+        SET title = ?, content = ?, tags = ?, author_email = ? 
         WHERE id = ?;
     """
     await db.execute(update_query, (item.title, item.content, tags_str, item.author_email, item_id))
@@ -111,7 +165,21 @@ async def update_info_item(item_id: int = Path(..., ge=1), item: InfoItemCreate 
 
 
 @app.delete("/info/{item_id}", status_code=204)
-async def delete_info_item(item_id: int = Path(..., ge=1), db: aiosqlite.Connection = Depends(get_db)):
+async def delete_info_item(item_id: int = Path(..., ge=1), db: aiosqlite.Connection = Depends(get_db),  token: str = Depends(oauth2_scheme)):
+    user_email = await decode_token(token=token) #поиск юзера по токен 
+    
+    async with db.cursor() as cursor:
+        await cursor.execute("SELECT 1 FROM users WHERE author_email = ?;", (user_email,))
+        db_user = await cursor.fetchone()
+
+        if db_user is None:
+            raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid authentication credentials",
+                    headers={"WWW-Authenticate": "Bearer"},
+            )
+    
+    
     check_query = "SELECT * FROM info_items WHERE id = ?"
     async with db.execute(check_query, (item_id,)) as cursor:
         row = await cursor.fetchone()
@@ -124,69 +192,88 @@ async def delete_info_item(item_id: int = Path(..., ge=1), db: aiosqlite.Connect
 
 
 
+@app.post(
+    "/register", 
+    status_code=status.HTTP_200_OK,
+    response_model=list[UserShow],
+    tags=["register"],
+    summary="User exist ",
+    description="Endpoint used for getting registered users",
+    response_description="Users is register",
+    operation_id="user-register",
+    include_in_schema=True,
+    name="user-register",
+    )
+async def user_registration(user_data: UserCreate, connection: aiosqlite.Connection = Depends(get_db)) -> UserShow:
+
+    async with connection.cursor() as cursor:
+        await cursor.execute("SELECT 1 FROM users WHERE author_email = ?;", (user_data.author_email,))
+        db_user = await cursor.fetchone()
+
+        if db_user is not None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "User exists.")
+
+        await cursor.execute(
+            "INSERT INTO users (name, password, author_email) VALUES (?, ?, ?) RETURNING id;",
+            (
+                user_data.name,
+                user_data.password,
+                user_data.author_email
+            ),
+        )
+
+        last_inserted = await cursor.fetchone()
+        await connection.commit()
+
+    return UserShow(**user_data.model_dump(), id=last_inserted["id"])
+
 async def decode_token(token: str):
     try:
+        # email-name.split("-")[0] --> email
         decoded_user_email = (
             base64.urlsafe_b64decode(token).split(b"-")[0].decode("utf-8")
         )
     except (UnicodeDecodeError, ValueError):
         return None
+
     return decoded_user_email
 
-@app.get("/users/me/token", status_code=status.HTTP_200_OK, response_model=UserShow)
-async def get_user_me_token(token: str = Depends(oauth2_scheme), connection: aiosqlite.Connection = Depends(get_db),) -> UserShow:
-    decoded_email = await decode_token(token)
-    async with connection.cursor() as cursor:
-        await cursor.execute("SELECT * FROM info_items WHERE name = ?;", (decoded_email,))
-        db_user = await cursor.fetchone()
-        if db_user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-    decoded_user = UserShow(**db_user)
-    if not decoded_user.is_active:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "User is not active.")
-    return decoded_user
-
-@app.get("/users/me/basic", status_code=status.HTTP_200_OK, response_model=UserShow)
-async def get_user_me_basic(credentials: HTTPBasicCredentials = Depends(security), connection: aiosqlite.Connection = Depends(get_db),) -> UserShow:
-    async with connection.cursor() as cursor:
-        await cursor.execute(
-            "SELECT * FROM info_items WHERE name = ? AND password = ?;",
-            (credentials.username, credentials.password),
-        )
-        db_user = await cursor.fetchone()
-        if db_user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect username or password",
-                headers={"WWW-Authenticate": "Basic"},
-            )
-    decoded_user = UserShow(**db_user)
-    if not decoded_user.is_active:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "User is not active.")
-    return decoded_user
-
-@app.post("/token", response_model=Token)
+@app.post(
+    "/token", 
+    response_model=Token,
+    status_code=status.HTTP_200_OK,
+    tags=["users"],
+    summary="User token",
+    description="Get user token ",
+    responses={
+        201: {"description": "User alredy exist "},
+        400: {"description": "User is not regestration "},
+    },
+    operation_id="user-token",
+    include_in_schema=True,
+    name="user-token",)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(),connection: aiosqlite.Connection = Depends(get_db),) -> Token:
     async with connection.cursor() as cursor:
         await cursor.execute(
-            "SELECT * FROM info_items WHERE name = ?;", (form_data.username,)
+            "SELECT * FROM users WHERE author_email = ?;", (form_data.username,)
         )
         db_user = await cursor.fetchone()
         if db_user is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "User does not exist.")
     user = UserShow(**db_user)
+    
     if user.password.get_secret_value() != form_data.password:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Incorrect password.")
+    
     return Token(
         access_token=base64.urlsafe_b64encode(
-            f"{user.email}-{user.name}".encode("utf-8")
+            f"{form_data.username}-{user.name}".encode("utf-8")
         ).decode("utf-8"),
         token_type="bearer",
     )
 
+
+
+
 if __name__ == '__main__':
-    uvicorn.run("Info_Hub:app", reload=True)
+    uvicorn.run("Info_hub:app", reload=True)

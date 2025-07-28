@@ -1,0 +1,13 @@
+2025-07-22 18:28:38,023 - improved_bg_tasks - INFO - Application started
+2025-07-22 18:28:38,024 - improved_bg_tasks - INFO - Task queue processor started
+2025-07-22 18:28:38,060 - watchfiles.main - INFO - 4 changes detected
+2025-07-22 18:29:09,918 - improved_bg_tasks - INFO - USER_ACTION | Email: user@example.com | Action: EMAIL_REQUEST_RECEIVED | Time: 2025-07-22 18:29:09.918399 | Details: Subject: Test Subject
+2025-07-22 18:29:09,919 - improved_bg_tasks - INFO - USER_ACTION | Email: user@example.com | Action: EMAIL_SEND_START | Time: 2025-07-22 18:29:09.919567 | Details: Subject: Test Subject
+2025-07-22 18:29:10,587 - improved_bg_tasks - INFO - USER_ACTION | Email: user@example.com | Action: EMAIL_SEND_ERROR | Time: 2025-07-22 18:29:10.587619 | Details: Error: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials ffacd0b85a97d-3b61ca48986sm13886469f8f.46 - gsmtp')
+2025-07-22 18:29:10,588 - improved_bg_tasks - ERROR - Failed to send email to user@example.com: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials ffacd0b85a97d-3b61ca48986sm13886469f8f.46 - gsmtp')
+2025-07-22 18:30:54,822 - watchfiles.main - INFO - 1 change detected
+2025-07-22 18:30:55,690 - watchfiles.main - INFO - 4 changes detected
+2025-07-22 18:31:44,539 - improved_bg_tasks - INFO - USER_ACTION | Email: mikimv09@gmail.com | Action: EMAIL_REQUEST_RECEIVED | Time: 2025-07-22 18:31:44.539607 | Details: Subject: Test  email
+2025-07-22 18:31:44,541 - improved_bg_tasks - INFO - USER_ACTION | Email: mikimv09@gmail.com | Action: EMAIL_SEND_START | Time: 2025-07-22 18:31:44.541010 | Details: Subject: Test  email
+2025-07-22 18:31:45,166 - improved_bg_tasks - INFO - USER_ACTION | Email: mikimv09@gmail.com | Action: EMAIL_SEND_ERROR | Time: 2025-07-22 18:31:45.166870 | Details: Error: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials ffacd0b85a97d-3b61ca4d7efsm13960248f8f.67 - gsmtp')
+2025-07-22 18:31:45,167 - improved_bg_tasks - ERROR - Failed to send email to mikimv09@gmail.com: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials ffacd0b85a97d-3b61ca4d7efsm13960248f8f.67 - gsmtp')
